@@ -1,88 +1,68 @@
-name: Deploy to GitHub Pages  # ← Имя workflow
+# This workflow builds and deploys marimo notebooks to GitHub Pages
+# It runs automatically when changes are pushed to the main branch or can be triggered manually
 
+name: Deploy to GitHub Pages
+
+# Defines when the workflow will run
 on:
   push:
-    branches: [ main, master ]  # ← Запуск при пуше в main/master
-  workflow_dispatch:            # ← Ручной запуск из интерфейса
+    branches: ['main']  # Trigger on pushes to main branch
+  workflow_dispatch:    # Allow manual triggering from the GitHub UI
+
+# Concurrency settings to manage multiple workflow runs
+concurrency:
+  group: 'pages'             # Only one workflow in the 'pages' group can run at a time
+  cancel-in-progress: false  # Don't cancel in-progress runs when a new one is triggered
+
+# Environment variables used by the workflow
+env:
+  UV_SYSTEM_PYTHON: 1   # Use system Python with uv package manager
 
 jobs:
+  # The build job exports marimo notebooks to static HTML/WebAssembly
   build:
-    runs-on: ubuntu-latest
-    
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
     steps:
-      # 1. Клонируем репозиторий
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Check out the repository code
+      - uses: actions/checkout@v5
 
-      # 2. Устанавливаем Python
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      # Install uv package manager for faster Python package installation
+      - name: 🚀 Install uv
+        uses: astral-sh/setup-uv@v7
 
-      # 3. Устанавливаем marimo
-      - name: Install marimo
-        run: pip install marimo
-
-      # 4. Экспортируем notebook
-      - name: Export notebook
+      # Run the build script to export notebooks to WebAssembly
+      - name: 🛠️ Export notebooks
         run: |
-          mkdir -p output
-          
-          # Экспортируем напрямую в index.html
-          marimo export html-wasm notebooks/HW2.py -o output/index.html --mode run
-          
-          # Проверяем
-          if [ -f "output/index.html" ]; then
-            echo "✓ index.html created"
-            SIZE=$(wc -c < output/index.html)
-            echo "File size: $((SIZE/1024)) KB"
-          else
-            # Если не сработало, экспортируем в папку
-            echo "Trying alternative export method..."
-            marimo export html-wasm notebooks/HW2.py -o output --mode run
-            
-            # Создаем index.html который редиректит на созданный файл
-            HTML_FILE=$(basename $(find output -name "*.html" -type f | head -1))
-            if [ -n "$HTML_FILE" ]; then
-              cat > output/index.html << EOF
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta http-equiv="refresh" content="0; url=$HTML_FILE">
-              </head>
-              <body>
-                <p>Redirecting to <a href="$HTML_FILE">notebook</a></p>
-              </body>
-              </html>
-              EOF
-              echo "✓ Created redirect to $HTML_FILE"
-            fi
-          fi
-
-      # 5. Загружаем артефакт
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+          # todo: Ultimately this function should not be part of this repo
+          # It should very much be an action such that other repos
+          # can use it without forking or copying it
+          # No, it should not be an action. As otherwise can't run before push
+          uv run .github/scripts/build.py  # This script exports all notebooks to the _site directory
+          tree _site                       # Display the exported files
+    
+      # Upload the generated site as an artifact for the deploy job
+      - name: 📤 Upload artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: output/
+          path: _site  # Directory containing the built site
 
+  # The deploy job publishes the built site to GitHub Pages
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build  # This job depends on the build job completing successfully
 
+    # Required permissions for the GitHub Pages deployment
     permissions:
-      pages: write
-      id-token: write
+      pages: write      # Permission to deploy to Pages
+      id-token: write   # Permission to verify the deployment
 
+    # Configure the deployment environment
+    environment:
+      name: github-pages                             # Deploy to the github-pages environment
+      url: ${{ steps.deployment.outputs.page_url }}  # Use the URL from the deployment step
+
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # Deploy the site to GitHub Pages using the official action
+      - name: 🚀 Deploy to GitHub Pages
+        id: deployment                 # ID used to reference this step's outputs
+        uses: actions/deploy-pages@v4  # GitHub's official Pages deployment action
