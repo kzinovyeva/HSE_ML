@@ -34,7 +34,7 @@ jobs:
         run: | 
           ls
           mkdir -p output
-          marimo export html-wasm HW2.py -o output --mode run
+          marimo export html-wasm notebooks/HW2.py -o output --mode run
 
       # 5. Загружаем артефакт
       - name: Upload Pages Artifact
