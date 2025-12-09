@@ -34,14 +34,35 @@ jobs:
         run: |
           mkdir -p output
           
-          # Экспортируем с опцией --embed
-          marimo export html-wasm notebooks/HW2.py -o output/index.html --mode run --embed
-    
+          # Экспортируем напрямую в index.html
+          marimo export html-wasm notebooks/HW2.py -o output/index.html --mode run
+          
           # Проверяем
           if [ -f "output/index.html" ]; then
-            echo "✓ index.html created with embedded WASM"
+            echo "✓ index.html created"
             SIZE=$(wc -c < output/index.html)
             echo "File size: $((SIZE/1024)) KB"
+          else
+            # Если не сработало, экспортируем в папку
+            echo "Trying alternative export method..."
+            marimo export html-wasm notebooks/HW2.py -o output --mode run
+            
+            # Создаем index.html который редиректит на созданный файл
+            HTML_FILE=$(basename $(find output -name "*.html" -type f | head -1))
+            if [ -n "$HTML_FILE" ]; then
+              cat > output/index.html << EOF
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta http-equiv="refresh" content="0; url=$HTML_FILE">
+              </head>
+              <body>
+                <p>Redirecting to <a href="$HTML_FILE">notebook</a></p>
+              </body>
+              </html>
+              EOF
+              echo "✓ Created redirect to $HTML_FILE"
+            fi
           fi
 
       # 5. Загружаем артефакт
