@@ -1,68 +1,58 @@
-# This workflow builds and deploys marimo notebooks to GitHub Pages
-# It runs automatically when changes are pushed to the main branch or can be triggered manually
+name: Deploy to GitHub Pages  # ← Имя workflow
 
-name: Deploy to GitHub Pages
-
-# Defines when the workflow will run
 on:
   push:
-    branches: ['main']  # Trigger on pushes to main branch
-  workflow_dispatch:    # Allow manual triggering from the GitHub UI
-
-# Concurrency settings to manage multiple workflow runs
-concurrency:
-  group: 'pages'             # Only one workflow in the 'pages' group can run at a time
-  cancel-in-progress: false  # Don't cancel in-progress runs when a new one is triggered
-
-# Environment variables used by the workflow
-env:
-  UV_SYSTEM_PYTHON: 1   # Use system Python with uv package manager
+    branches: [ main, master ]  # ← Запуск при пуше в main/master
+  workflow_dispatch:            # ← Ручной запуск из интерфейса
 
 jobs:
-  # The build job exports marimo notebooks to static HTML/WebAssembly
   build:
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
-    steps:
-      # Check out the repository code
-      - uses: actions/checkout@v5
-
-      # Install uv package manager for faster Python package installation
-      - name: 🚀 Install uv
-        uses: astral-sh/setup-uv@v7
-
-      # Run the build script to export notebooks to WebAssembly
-      - name: 🛠️ Export notebooks
-        run: |
-          # todo: Ultimately this function should not be part of this repo
-          # It should very much be an action such that other repos
-          # can use it without forking or copying it
-          # No, it should not be an action. As otherwise can't run before push
-          uv run .github/scripts/build.py  # This script exports all notebooks to the _site directory
-          tree _site                       # Display the exported files
+    runs-on: ubuntu-latest
     
-      # Upload the generated site as an artifact for the deploy job
-      - name: 📤 Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: _site  # Directory containing the built site
-
-  # The deploy job publishes the built site to GitHub Pages
-  deploy:
-    needs: build  # This job depends on the build job completing successfully
-
-    # Required permissions for the GitHub Pages deployment
     permissions:
-      pages: write      # Permission to deploy to Pages
-      id-token: write   # Permission to verify the deployment
+      contents: read
+      pages: write
+      id-token: write
 
-    # Configure the deployment environment
-    environment:
-      name: github-pages                             # Deploy to the github-pages environment
-      url: ${{ steps.deployment.outputs.page_url }}  # Use the URL from the deployment step
-
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
     steps:
-      # Deploy the site to GitHub Pages using the official action
-      - name: 🚀 Deploy to GitHub Pages
-        id: deployment                 # ID used to reference this step's outputs
-        uses: actions/deploy-pages@v4  # GitHub's official Pages deployment action
+      # 1. Клонируем репозиторий
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Устанавливаем Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Устанавливаем marimo
+      - name: Install marimo
+        run: pip install marimo
+
+      # 4. Экспортируем notebook
+      - name: Export notebook
+        run: |
+          mkdir -p output
+          marimo export html-wasm HW2.py -o output --mode run
+
+      # 5. Загружаем артефакт
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
