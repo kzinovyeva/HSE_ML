@@ -55,14 +55,14 @@ def _():
 
 @app.cell
 def _(pd):
-    cities = pd.read_csv('https://github.com/kzinovyeva/HSE_ML/blob/main/notebooks/city.csv')
+    cities = pd.read_csv('https://raw.githubusercontent.com/kzinovyeva/HSE_ML/main/notebooks/city.csv')
     print(cities.head() )
 
-    calendar = pd.read_csv('https://github.com/kzinovyeva/HSE_ML/blob/main/notebooks/Calendar.csv')
+    calendar = pd.read_csv('https://raw.githubusercontent.com/kzinovyeva/HSE_ML/main/notebooks/Calendar.csv')
     calendar['calendar_date'] = pd.to_datetime(calendar['calendar_date'])
     print(calendar.head())
 
-    passengers = pd.read_csv('https://github.com/kzinovyeva/HSE_ML/blob/main/notebooks/passenger.csv')
+    passengers = pd.read_csv('https://raw.githubusercontent.com/kzinovyeva/HSE_ML/main/notebooks/passenger.csv')
     passengers['first_call_time'] = pd.to_datetime(passengers['first_call_time'], errors='coerce')
 
     passengers['date_only'] = passengers['first_call_time'].dt.date
@@ -74,7 +74,7 @@ def _(pd):
         how='left'
     )
 
-    trips = pd.read_csv('https://github.com/kzinovyeva/HSE_ML/blob/main/notebooks/trip.csv')
+    trips = pd.read_csv('https://raw.githubusercontent.com/kzinovyeva/HSE_ML/main/notebooks/trip.csv')
     # trips.trip_distance.fillna(trips.trip_distance.mean())
     trips['call_time'] = pd.to_datetime(trips['call_time'])
     trips['finish_time'] = pd.to_datetime(trips['finish_time'])
@@ -433,5 +433,6 @@ def _():
 
 if __name__ == "__main__":
     app.run()
+
 
 
